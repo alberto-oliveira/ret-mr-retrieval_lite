@@ -87,8 +87,8 @@ def create_rank_files(retcfg):
         distscores = distscores[aux]
         namearray = namearray[aux]
 
-        normvotes, _ = normalize_scores(votescores, minmax_range=(1, 2), cvt_sim=False)
-        normdists, _ = normalize_scores(distscores, minmax_range=(1, 2), cvt_sim=True)
+        normvotes, _ = normalize_scores(votescores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=False).reshape(-1)
+        normdists, _ = normalize_scores(distscores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=True).reshape(-1)
 
         # Excludes first result. Used to exclude the query image, in case it is present in the database.
         if exfirst:
