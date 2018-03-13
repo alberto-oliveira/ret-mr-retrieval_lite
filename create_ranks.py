@@ -88,7 +88,7 @@ def create_rank_files(retcfg):
         namearray = namearray[aux]
 
         normvotes, _ = normalize_scores(votescores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=False)
-        normdists, _ = normalize_scores(distscores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=True).reshape(-1)
+        normdists, _ = normalize_scores(distscores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=True)
 
         normvotes = normvotes.reshape(-1)
         normdists = normdists.reshape(-1)
