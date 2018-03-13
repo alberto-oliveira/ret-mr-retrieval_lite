@@ -14,6 +14,8 @@ import traceback
 import numpy as np
 import cv2
 
+from sklearn.preprocessing import MinMaxScaler
+
 
 def count_scores(indextable, votes, votetable=[], distances=[], multi=False):
     """ Count vote and distance scores.
@@ -264,28 +266,24 @@ def count_scores_and_matches(indextable,
     return votescores, distscores, dmatchlist
 
 
-def normalize_scores(inarray, cvt_sim=False, min_val=-1):
+def normalize_scores(inarray, minmax_range=(0, 1), cvt_sim=False):
     """ Perform min-max normalization, optionally converting similarity to dissimilarity, and vice versa.
 
     :param inarray: input array to be normalized;
     :param cvt_sim: If true, converts between similarity-dissimilarity. Conversion is done by subtracting the normalized
                     array from 1;
-    :param min_val: (optional) minimum value to use in the min-max normalization. If less than 0, uses the minimum
-                    computed from the array.
+    :param minmax_range: (optional) normalization range. Default = (0, 1).
     :return: normalized array, indices of ordered normalized array.
     """
 
-    if min_val < 0:
-        mi = np.min(inarray)
-    else:
-        mi = min_val
+    scaler = MinMaxScaler(feature_range=minmax_range)
 
-    mx = np.max(inarray)
+    norm_array = scaler.fit_transform(inarray)
 
-    norm_array = (inarray.astype(np.float64) - mi)/(mx - mi)
-    score_order = norm_array.argsort()
 
     if cvt_sim:
-        return 1 - norm_array, score_order
-    else:
-        return norm_array, score_order[::-1]
+        norm_array = (minmax_range[1] - norm_array) + minmax_range[0]
+
+    score_order = norm_array.argsort()
+
+    return norm_array, score_order

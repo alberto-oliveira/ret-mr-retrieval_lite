@@ -87,8 +87,8 @@ def create_rank_files(retcfg):
         distscores = distscores[aux]
         namearray = namearray[aux]
 
-        normvotes, _ = normalize_scores(votescores, cvt_sim=False, min_val=0)
-        normdists, _ = normalize_scores(distscores, cvt_sim=True, min_val=0)
+        normvotes, _ = normalize_scores(votescores, minmax_range=(1, 2), cvt_sim=False)
+        normdists, _ = normalize_scores(distscores, minmax_range=(1, 2), cvt_sim=True)
 
         # Excludes first result. Used to exclude the query image, in case it is present in the database.
         if exfirst:
@@ -108,7 +108,6 @@ def create_rank_files(retcfg):
         print("shapes - ", namearray.shape, votescores.shape, normvotes.shape, distscores.shape, normdists.shape)
 
         aux = zip(namearray, votescores, normvotes, distscores, normdists)
-
 
         dt = dict(names=('name', 'votes', 'normv', 'dists', 'normd'),
                   formats=('U100', np.float32, np.float32, np.float32, np.float32))
