@@ -9,10 +9,17 @@ from sklearn.metrics import precision_score
 
 import numpy as np
 
-sys.path.append("/home/alberto/SpotME/projects/performance-prediction/sources/ret-mr-learning/source/")
-from common.rIO import read_rank
 
 completedir = lambda d: d if d[-1] == "/" else d + "/"
+
+rk_dtype = dict(names=('name', 'votes', 'normv', 'dists', 'normd'),
+                formats=('U100', np.float32, np.float32, np.float32, np.float32))
+
+def read_rank(fpath):
+
+    arr = np.loadtxt(fpath, dtype=rk_dtype)
+
+    return arr
 
 def get_label(basename):
 
@@ -22,7 +29,8 @@ def get_label(basename):
 def get_query_label(q_basename):
 
     parts = q_basename.split("_", 1)
-    return get_label(parts[1])
+    parts = parts[1].rsplit("_", 1)
+    return get_label(parts[0])
 
 def get_rank_relevance(qlabel, rank):
 
