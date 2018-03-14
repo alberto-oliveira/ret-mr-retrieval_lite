@@ -23,13 +23,13 @@ def read_rank(fpath):
 
 def get_label(basename):
 
-    parts = basename.rsplit("_", 2)
+    parts = basename.rsplit("_", 1)
     return parts[0]
 
 def get_query_label(q_basename):
 
     parts = q_basename.split("_", 1)
-    parts = parts[1].rsplit("_", 1)
+    #parts = parts[1].rsplit("_", 1)
     return get_label(parts[0])
 
 def get_rank_relevance(qlabel, rank):
