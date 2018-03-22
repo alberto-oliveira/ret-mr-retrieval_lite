@@ -8,7 +8,7 @@ import os
 from sklearn.metrics import precision_score
 
 import numpy as np
-
+import ipdb as pdb
 
 completedir = lambda d: d if d[-1] == "/" else d + "/"
 
@@ -40,6 +40,8 @@ def get_rank_relevance(qlabel, rank):
 
     for i in range(rksz):
         rlabel = get_label(rank['name'][i])
+
+        #rlabel = rlabel.split('\'')[1]
         if rlabel == qlabel:
             gt[0, i] = 1
         else:
@@ -53,6 +55,8 @@ def evaluate_and_label(retcfg):
 
     rkdir = completedir(retcfg['path']['outdir']) + "queryfiles/"
     outdir = completedir(retcfg['path']['outdir'])
+
+    print(rkdir)
 
     rkfiles = glob.glob(rkdir + "*.rk")
     rkfiles.sort()
@@ -70,7 +74,7 @@ def evaluate_and_label(retcfg):
     print(gtarr.shape)
     aux = []
 
-    for k in [1, 3, 5, 10, 25, 50, 100]:
+    for k in [1, 3, 5, 10, 25, 50, 100, 250, 500, 1000]:
         aux.append(np.mean(gtarr[:, 0:k], axis=1).reshape((-1,1)))
 
     prectable = np.hstack(aux)
@@ -82,5 +86,5 @@ def evaluate_and_label(retcfg):
     outevalfname = outdir + retcfg['DEFAULT']['expname'] + "_eval.csv"
 
     np.save(outrelfname, gtarr[:, 0:kp])
-    np.savetxt(outevalfname, prectable, header=",P@001,P@003,P@005,P@010,P@025,P@050,P@100",
-               fmt="  ,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f", delimiter=",")
+    np.savetxt(outevalfname, prectable, header=",P@001,P@003,P@005,P@010,P@025,P@050,P@100,P@250,P@500,P@1000",
+               fmt="  ,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f", delimiter=",")
