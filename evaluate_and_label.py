@@ -49,7 +49,7 @@ def get_rank_relevance(qlabel, rank):
 
     return gt
 
-def evaluate_and_label(retcfg):
+def evaluate_and_label(retcfg, lbl_suffix=""):
 
     kp = retcfg.getint("eval", "k")
 
@@ -82,7 +82,7 @@ def evaluate_and_label(retcfg):
     # Computing and stacking the average between all queries
     prectable = np.vstack([prectable, np.mean(prectable, axis=0)])
 
-    outrelfname = outdir + retcfg['DEFAULT']['expname'] + "_rel.out"
+    outrelfname = outdir + retcfg['DEFAULT']['expname'] + lbl_suffix + ".irp_lbls.npy"
     outevalfname = outdir + retcfg['DEFAULT']['expname'] + "_eval.csv"
 
     np.save(outrelfname, gtarr[:, 0:kp])
