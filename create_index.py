@@ -18,6 +18,7 @@ def create_index(retcfg):
     index_type = retcfg['index']['index_type']
     dist_type = retcfg['index']['dist_type']
     lib = retcfg['index']['lib']
+    norm = retcfg.get('feature', 'norm', fallback=None)
 
     safe_create_dir(retcfg['path']['outdir'])
 
@@ -27,7 +28,7 @@ def create_index(retcfg):
                                                   index_type, dist_type)
 
     if lib == "cv":
-        fidx, params = create_flann_index(dbfeatures, index_type, dist_type)
+        fidx, params = create_flann_index(dbfeatures, index_type, dist_type, norm=norm)
     else:
         raise ValueError("Unsupported flann lib <{0:s}>".format(lib))
 

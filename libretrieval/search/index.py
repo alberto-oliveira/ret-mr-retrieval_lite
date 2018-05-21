@@ -6,6 +6,7 @@ import sys
 import traceback
 
 import cv2
+from sklearn.preprocessing import normalize
 import numpy as np
 #import pyflann
 
@@ -30,7 +31,7 @@ dtype_map = {"EUCLIDEAN": 1,
              "HAMMING": 9,
              "HMD": 9}
 
-def create_flann_index(features, itype, dtype):
+def create_flann_index(features, itype, dtype, norm=None):
     """ Creates a flann index using OpenCV's FLANN interface
 
     :param features: array of features to build the index for;
@@ -41,6 +42,9 @@ def create_flann_index(features, itype, dtype):
 
     :return: FLANN index.
     """
+
+    if norm:
+        features = normalize(features, norm)
 
     if itype == "LSH":
 

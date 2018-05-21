@@ -7,6 +7,7 @@ import argparse
 import glob
 import numpy as np
 import cv2
+from sklearn.preprocessing import normalize
 
 from libretrieval.utility import safe_create_dir
 from libretrieval.search.query import flann_search
@@ -54,10 +55,14 @@ def search_index(retcfg):
     search_type = retcfg['search']['search_type']
     knn = retcfg.getint('search', 'knn')
     rfactor = retcfg.getfloat('search', 'radius_factor')
+    norm = retcfg.get('feature', 'norm', fallback=None)
 
     sidx = 0
     for qname, n in q_namelist:
         qfeat = q_features[sidx:sidx+n]
+
+        if norm:
+            qfeat = normalize(qfeat, norm)
 
         matchfpath = "{0:s}{1:s}.matches".format(outdir, qname)
         distfpath = "{0:s}{1:s}.dist".format(outdir, qname)
