@@ -43,7 +43,11 @@ def search_index(retcfg):
     assert q_features.shape[0] == np.sum(q_namelist['nfeat']), "Inconsistent number of features sum and size of" \
                                                                "query features array"
 
+    norm = retcfg.get('feature', 'norm', fallback=None)
+
     db_features = load_features(retcfg['path']['dbfeature'])
+    if norm:
+        db_features = normalize(db_features, norm)
 
     fidx = cv2.flann_Index()
     ifile = get_index_path(retcfg['path']['outdir'], retcfg['DEFAULT']['expname'])
@@ -55,7 +59,6 @@ def search_index(retcfg):
     search_type = retcfg['search']['search_type']
     knn = retcfg.getint('search', 'knn')
     rfactor = retcfg.getfloat('search', 'radius_factor')
-    norm = retcfg.get('feature', 'norm', fallback=None)
 
     sidx = 0
     for qname, n in q_namelist:
