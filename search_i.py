@@ -78,8 +78,15 @@ def search_i(qname, retcfg, outdir):
 
     # Find query features
     ts['find'] = time.perf_counter()
-    qi = np.argwhere(db_namelist['name'] == qname)   # Position
-    nfeat = db_namelist['nfeat']                     # Number of Features
+    try:
+        qi = np.argwhere(db_namelist['name'] == qname).reshape(-1)[0]   # Position
+        print("$$$ ", qi)
+    except IndexError as ie:
+        print(". Query image <", qname, "> not found.")
+        print("Exiting...")
+        return
+
+    nfeat = db_namelist['nfeat'][qi]                                   # Number of Features
     q_features = db_features[qi:qi+nfeat]
     ts['find'] = time.perf_counter() - ts['find']
 
