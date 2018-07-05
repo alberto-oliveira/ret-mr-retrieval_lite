@@ -1,24 +1,16 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import os
-import sys
-import glob
-import argparse
 import time
 
-import cv2
 from sklearn.preprocessing import normalize
-import numpy as np
 
 from libretrieval.ranking.score import *
 from libretrieval.features.io import load_features
 from libretrieval.utility import safe_create_dir
 from libretrieval.search.query import flann_search
-#from libretrieval.utility import load_feature_indexing
 
 from search_index import get_index_path
-from create_ranks import invert_index
 
 verbose = True
 
