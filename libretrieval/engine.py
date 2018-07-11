@@ -42,8 +42,6 @@ class RetrievalEngine:
         # --- Ranking Config --- #
         self.score = self.retcfg['rank']['score_type']                            # Score type {vote, distance}
         self.limit = self.retcfg.getint('rank', 'limit', fallback=np.newaxis)     # Limit # in rank
-        self.ef = self.retcfg.getboolean('rank', 'exclude_first')                 # Exclude first
-        self.ez = self.retcfg.getboolean('rank', 'exclude_zero')                  # Exclude zeroes
 
         # --- Search Config  --- #
         self.search_type = self.retcfg['search']['search_type']                   # Type of search {knn, radius}
