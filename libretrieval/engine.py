@@ -99,7 +99,7 @@ class RetrievalEngine:
 
         return
 
-    def search_batch(self, batchfile, outdir, l=np.newaxis, numbered=False, verbose=True):
+    def batch_search(self, batchfile, outdir, l=np.newaxis, numbered=False, verbose=True):
 
         try:
             batch = np.loadtxt(batchfile, dtype=np.int32, usecols=0)
@@ -109,14 +109,16 @@ class RetrievalEngine:
         for i, query in enumerate(batch[:l]):
             print("batched query: ", query)
 
+            rk = self.search(query, outdir, '{0:04d}'.format(i), verbose)
+
             if numbered:
-                self.search_image(query, outdir, '{0:04d}'.format(i), verbose)
+                self.write_rank(rk, query, outdir, prefix='{0:04d}'.format(i))
             else:
-                self.search_image(query, outdir, '', verbose)
+                self.write_rank(rk, query, outdir)
 
         return
 
-    def search_image(self, query, outdir, prefix='', verbose=False):
+    def search(self, query, outdir, prefix='', verbose=False):
 
         safe_create_dir(outdir)
 
@@ -160,8 +162,8 @@ class RetrievalEngine:
                                        f=self.rfactor,
                                        flib="cv")
 
-        votescores = np.zeros(self.ni, dtype=np.float32)
-        distscores = np.zeros(self.ni, dtype=np.float32)
+        matchscores = np.zeros(self.ni, dtype=np.float64)
+        distscores = np.zeros(self.ni, dtype=np.float64)
         namearray = self.dbnames['name']
 
         for i in range(nf):
@@ -171,58 +173,38 @@ class RetrievalEngine:
             # for the feature, and the distance got is summed as well (to be divided later)
             for v, d in zip(votes[i, :], dists[i, :]):
                 dbi = self.invidx[v]
-                votescores[dbi] += 1
+                matchscores[dbi] += 1
                 distscores[dbi] += d
 
-        aux = np.flatnonzero(votescores)
-        votescores = votescores[aux]
-        distscores = distscores[aux]
+        if self.score == "vote":
+            finalscore = matchscores
+        elif self.score == "distance":
+            finalscore = distscores/matchscores
+
+        aux = np.logical_not(np.logical_or(np.isnan(finalscore), np.isinf(finalscore)))
+        finalscore = finalscore[aux]
         namearray = namearray[aux]
 
-        distscores = distscores / votescores
+        aux = zip(namearray, finalscore)
 
-        normvotes, _ = normalize_scores(votescores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=False)
-        normdists, _ = normalize_scores(distscores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=True)
-
-        normvotes = normvotes.reshape(-1)
-        normdists = normdists.reshape(-1)
-
-        # Excludes first result. Used to exclude the query image, in case it is present in the database.
-        if self.ef:
-            mv = np.max(votescores)
-            aux = votescores != mv
-            votescores = votescores[aux]
-            distscores = distscores[aux]
-            namearray = namearray[aux]
-
-        # Excludes any results with 0 votes.
-        if self.ez:
-            aux = votescores != 0
-            votescores = votescores[aux]
-            distscores = distscores[aux]
-            namearray = namearray[aux]
-
-        aux = zip(namearray, votescores, normvotes, distscores, normdists)
-
-        dt = dict(names=('name', 'votes', 'normv', 'dists', 'normd'),
-                  formats=('U100', np.float32, np.float32, np.float32, np.float32))
+        dt = dict(names=('name', 'score'),
+                  formats=('U100', np.float64))
 
         rank = np.array([a for a in aux], dtype=dt)
+        rank.sort(order=('score', 'name'))
 
-        # norm distances are used to sort, instead of pure mean distances, as they are normalized to a similarity,
-        # thus being being in accord to voting, which is also a similarity.
         if self.score == "vote":
-            rank.sort(order=('votes', 'normd', 'name'))
-            rank = rank[::-1]  # Just inverting the sort order to highest scores
+            rank = rank[::-1]
 
-        elif self.score == "distance":
-            rank.sort(order=('normd', 'votes', 'name'))
-            rank = rank[::-1]  # Just inverting the sort order to highest scores
+        return rank[0:self.limit]
+
+    @staticmethod
+    def write_rank(rank, qname, outdir, prefix=''):
 
         if prefix != '':
             prefix += '_'
 
-        rankfpath = "{0:s}{1:s}{2:s}.rk".format(outdir, prefix, qname)
-        np.savetxt(rankfpath, rank[0:self.limit], fmt="%-50s %10.5f %10.5f %10.5f %10.5f")
+        rankfpath = "{outdir:s}{prefix:s}{qname:s}.rk".format(outdir=outdir, prefix=prefix, qname=qname)
+        np.savetxt(rankfpath, rank, fmt="%-50s %10.5f %10.5f %10.5f %10.5f")
 
 

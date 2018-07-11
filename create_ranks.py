@@ -45,8 +45,6 @@ def create_rank_files(retcfg):
 
     score = retcfg['rank']['score_type']
     limit = retcfg.getint('rank', 'limit')
-    exfirst = retcfg.getboolean('rank', 'exclude_first')
-    exzero = retcfg.getboolean('rank', 'exclude_zero')
 
     invidx = invert_index(db_namelist)
 
@@ -66,7 +64,7 @@ def create_rank_files(retcfg):
         assert votes.shape == dists.shape, "Inconsistent shape between votes and distance array"
         nqfeat = votes.shape[0]
 
-        votescores = np.zeros(dbsize, dtype=np.float32)
+        matchscore= np.zeros(dbsize, dtype=np.float32)
         distscores = np.zeros(dbsize, dtype=np.float32)
         namearray = db_namelist['name']
 
@@ -77,57 +75,31 @@ def create_rank_files(retcfg):
             # for the feature, and the distance got is summed as well (to be divided later)
             for v, d in zip(votes[i, :], dists[i, :]):
                 dbi = invidx[v]
-                votescores[dbi] += 1
+                matchscore[dbi] += 1
                 distscores[dbi] += d
 
-        distscores = distscores/votescores
+        if score == "vote":
+            finalscore = matchscore
+        elif score == "distance":
+            finalscore = distscores/matchscore
 
-        aux = np.logical_not(np.logical_or(np.isnan(distscores), np.isinf(distscores)))
-        votescores = votescores[aux]
-        distscores = distscores[aux]
+        aux = np.logical_not(np.logical_or(np.isnan(finalscore), np.isinf(finalscore)))
+        finalscore = finalscore[aux]
         namearray = namearray[aux]
 
-        normvotes, _ = normalize_scores(votescores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=False)
-        normdists, _ = normalize_scores(distscores.reshape(-1, 1), minmax_range=(1, 2), cvt_sim=True)
+        aux = zip(namearray, finalscore)
 
-        normvotes = normvotes.reshape(-1)
-        normdists = normdists.reshape(-1)
-
-        # Excludes first result. Used to exclude the query image, in case it is present in the database.
-        if exfirst:
-            mv = np.max(votescores)
-            aux = votescores != mv
-            votescores = votescores[aux]
-            distscores = distscores[aux]
-            namearray = namearray[aux]
-
-        # Excludes any results with 0 votes.
-        if exzero:
-            aux = votescores != 0
-            votescores = votescores[aux]
-            distscores = distscores[aux]
-            namearray = namearray[aux]
-
-        print("shapes - ", namearray.shape, votescores.shape, normvotes.shape, distscores.shape, normdists.shape)
-
-        aux = zip(namearray, votescores, normvotes, distscores, normdists)
-
-        dt = dict(names=('name', 'votes', 'normv', 'dists', 'normd'),
-                  formats=('U100', np.float32, np.float32, np.float32, np.float32))
+        dt = dict(names=('name', 'score'),
+                  formats=('U100', np.float64))
 
         rank = np.array([a for a in aux], dtype=dt)
+        rank.sort(order=('score', 'name'))
 
-        # norm distances are used to sort, instead of pure mean distances, as they are normalized to a similarity,
-        # thus being being in accord to voting, which is also a similarity.
         if score == "vote":
-            rank.sort(order=('votes', 'normd', 'name'))
-            rank = rank[::-1]  # Just inverting the sort order to highest scores
+            rank = rank[::-1]
 
-        elif score == "distance":
-            rank.sort(order=('normd', 'votes', 'name'))
-            rank = rank[::-1]  # Just inverting the sort order to highest scores
-
-        if limit < 0:  limit = rank.shape[0]
+        if limit < 0:
+            limit = rank.shape[0]
         te = time.perf_counter()
         print("{0:0.4f}s".format(te-ts), end="\n---\n")
 
