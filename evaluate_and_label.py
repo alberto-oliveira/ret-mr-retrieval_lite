@@ -12,8 +12,8 @@ import ipdb as pdb
 
 completedir = lambda d: d if d[-1] == "/" else d + "/"
 
-rk_dtype = dict(names=('name', 'votes', 'normv', 'dists', 'normd'),
-                formats=('U100', np.float32, np.float32, np.float32, np.float32))
+rk_dtype = dict(names=('name', 'score'),
+                formats=('U100', np.float64))
 
 def read_rank(fpath):
 
