@@ -203,6 +203,6 @@ class RetrievalEngine:
             prefix += '_'
 
         rankfpath = "{outdir:s}{prefix:s}{qname:s}.rk".format(outdir=outdir, prefix=prefix, qname=qname)
-        np.savetxt(rankfpath, rank, fmt="%-50s %10.5f %10.5f %10.5f %10.5f")
+        np.savetxt(rankfpath, rank, fmt="%-50s %10.5f")
 
 
