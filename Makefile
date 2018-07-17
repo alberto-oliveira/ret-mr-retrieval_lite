@@ -21,6 +21,10 @@ pipeline: index search rank evaluate
 		@echo "-- Pipeline for: "
 		@cat $(CFGDIR)$(CFGFILE)
 
-.PHONY: check
+.PHONY: cleanout view
 
-check:
+cleanout:
+		sed -n -e 's/expname=//p' $(CFGDIR)$(CFGFILE)
+
+view:
+		@cat $(CFGDIR)$(CFGFILE)

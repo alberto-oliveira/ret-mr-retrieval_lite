@@ -98,7 +98,7 @@ def create_rank_files(retcfg, verbose=True):
         te = time.perf_counter()
         print("{0:0.4f}s".format(te-ts), end="\n---\n")
 
-        np.savetxt(rankfpath, rank[0:limit], fmt="%-50s %10.5f %10.5f %10.5f %10.5f")
+        np.savetxt(rankfpath, rank[0:limit], fmt="%-50s %10.5f")
 
 
 if __name__ == "__main__":
