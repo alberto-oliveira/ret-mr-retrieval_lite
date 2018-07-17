@@ -19,7 +19,10 @@ evaluate: evaluate_and_label.py
 
 pipeline: index search rank evaluate
 		@echo "-- Pipeline for: "
-		@cat $(CFGDIR)$(CFGFILE)
+		@cat $(CFGFILE)
+
+fitting:
+		python fitting.py $(CFGFILE)
 
 .PHONY: cleanout view list
 

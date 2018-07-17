@@ -3,6 +3,7 @@
 
 import os
 import glob
+import configparser
 
 import cv2
 import numpy as np
@@ -25,9 +26,15 @@ def get_index_path(indexdir, prefix):
 
 class RetrievalEngine:
 
-    def __init__(self, cfgfile):
+    def __init__(self, cfg):
 
-        self.retcfg = cfgloader(cfgfile)
+        if isinstance(cfg, str):
+            self.retcfg = cfgloader(cfg)
+        elif isinstance(cfg, configparser.ConfigParser):
+            self.retcfg = cfg
+        else:
+            raise TypeError("Input parameter cfg must be either a path to a config file or a loaded configuration")
+
         self.dbnames = np.loadtxt(self.retcfg['path']['dblist'],
                                   dtype=dict(names=('name', 'nfeat'),
                                              formats=('U100', np.int32)))
@@ -116,9 +123,7 @@ class RetrievalEngine:
 
         return
 
-    def search(self, query, outdir, prefix='', verbose=False):
-
-        safe_create_dir(outdir)
+    def search(self, query, verbose=False):
 
         if isinstance(query, np.int32) or isinstance(query, int):
 
