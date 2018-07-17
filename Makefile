@@ -2,8 +2,8 @@ help:
 		@cat Makefile
 
 CFGDIR?="./config/"
-OUTDIR?="./output/
-QDIR?="./queries/
+OUTDIR?="./output/"
+QDIR?="./queries/"
 
 index: create_index.py
 		python create_index.py $(CFGFILE)
