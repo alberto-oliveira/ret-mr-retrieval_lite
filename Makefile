@@ -24,8 +24,7 @@ pipeline: index search rank evaluate
 .PHONY: cleanout view list
 
 cleanout:
-		FOUTDIR=$(OUTDIR)$(sed -n -e 's/expname=//p' $(CFGFILE))
-		echo $(FOUTDIR)
+		rm -rfv $(OUTDIR)`sed -n -e 's/expname=//p' $(CFGFILE)`
 
 view:
 		@cat $(CFGFILE)
