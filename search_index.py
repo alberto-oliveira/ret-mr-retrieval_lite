@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import os
-import sys
 import argparse
 import glob
 import numpy as np
 import cv2
 from sklearn.preprocessing import normalize
 
-from libretrieval.utility import safe_create_dir
+from libretrieval.utility import safe_create_dir, cfgloader
 from libretrieval.search.query import flann_search
 from libretrieval.features.io import load_features
 
@@ -78,6 +76,17 @@ def search_index(retcfg):
         np.save(matchfpath + ".npy", votes)
         np.save(distfpath + ".npy", dists)
         sidx += n
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("cfgfile", help="Retrieval configuration file", type=str)
+    args = parser.parse_args()
+
+    retcfg = cfgloader(args.cfgfile)
+
+    search_index(retcfg)
 
 
 

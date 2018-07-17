@@ -1,19 +1,21 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import sys
 import glob
 import os
+import argparse
 
 from sklearn.metrics import precision_score
 
 import numpy as np
-import ipdb as pdb
+
+from libretrieval.utility import cfgloader
 
 completedir = lambda d: d if d[-1] == "/" else d + "/"
 
 rk_dtype = dict(names=('name', 'score'),
                 formats=('U100', np.float64))
+
 
 def read_rank(fpath):
 
@@ -21,16 +23,22 @@ def read_rank(fpath):
 
     return arr
 
-def get_label(basename):
 
-    parts = basename.rsplit("_", 1)
-    return parts[0]
+def get_label(name):
+    parts = name.split("_")
+    i = 0
 
-def get_query_label(q_basename):
+    for i in range(len(parts)):
+        if parts[i].isdigit():
+            break
 
-    parts = q_basename.split("_", 1)
-    #parts = parts[1].rsplit("_", 1)
-    return get_label(parts[1])
+    return "_".join(parts[:i])
+
+
+def get_query_label(qname):
+    suffix = qname.split("_", 1)[1]
+    return get_label(suffix)
+
 
 def get_rank_relevance(qlabel, rank):
 
@@ -48,6 +56,7 @@ def get_rank_relevance(qlabel, rank):
             gt[0, i] = 0
 
     return gt
+
 
 def evaluate_and_label(retcfg, lbl_suffix=""):
 
@@ -88,3 +97,15 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
     np.save(outrelfname, gtarr[:, 0:kp])
     np.savetxt(outevalfname, prectable, header=",P@001,P@003,P@005,P@010,P@025,P@050,P@100,P@250,P@500,P@1000",
                fmt="  ,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f", delimiter=",")
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("cfgfile", help="Retrieval configuration file", type=str)
+    parser.add_argument("-s", "--suffix", help="Suffix for label files", type=str, default="")
+    args = parser.parse_args()
+
+    retcfg = cfgloader(args.cfgfile)
+
+    evaluate_and_label(retcfg, args.suffix)

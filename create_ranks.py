@@ -1,17 +1,12 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import os
-import sys
 import glob
-import numpy as np
 import argparse
 import time
 
 from libretrieval.ranking.score import *
-#from libretrieval.utility import load_feature_indexing
-
-verbose = True
+from libretrieval.utility import cfgloader
 
 completedir = lambda d: d if d[-1] == "/" else d + "/"
 
@@ -28,7 +23,7 @@ def invert_index(db_namelist):
 
     return invidx
 
-def create_rank_files(retcfg):
+def create_rank_files(retcfg, verbose=True):
 
     outdir = completedir(retcfg['path']['outdir']) + "queryfiles/"
 
@@ -104,3 +99,14 @@ def create_rank_files(retcfg):
         print("{0:0.4f}s".format(te-ts), end="\n---\n")
 
         np.savetxt(rankfpath, rank[0:limit], fmt="%-50s %10.5f %10.5f %10.5f %10.5f")
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("cfgfile", help="Retrieval configuration file", type=str)
+    args = parser.parse_args()
+
+    retcfg = cfgloader(args.cfgfile)
+
+    create_rank_files(retcfg)

@@ -1,14 +1,9 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import os
 import argparse
-import glob
-import errno
 
-import numpy as np
-
-from libretrieval.utility import safe_create_dir
+from libretrieval.utility import safe_create_dir, cfgloader
 from libretrieval.features.io import load_features
 
 from libretrieval.search.index import create_flann_index
@@ -35,3 +30,14 @@ def create_index(retcfg):
     fidx.save(outpath)
 
     return
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("cfgfile", help="Retrieval configuration file", type=str)
+    args = parser.parse_args()
+
+    retcfg = cfgloader(args.cfgfile)
+
+    create_index(retcfg)
