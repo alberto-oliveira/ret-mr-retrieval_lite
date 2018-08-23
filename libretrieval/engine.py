@@ -106,6 +106,10 @@ class RetrievalEngine:
 
     def batch_search(self, batchfile, outdir, l=np.newaxis, numbered=False, verbose=True):
 
+        if outdir[-1] != '/':
+            outdir += '/'
+        safe_create_dir(outdir)
+
         try:
             batch = np.loadtxt(batchfile, dtype=np.int32, usecols=0)
         except ValueError:
