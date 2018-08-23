@@ -114,7 +114,7 @@ class RetrievalEngine:
         for i, query in enumerate(batch[:l]):
             print("batched query: ", query)
 
-            rk = self.search(query, outdir, '{0:04d}'.format(i), verbose)
+            rk = self.search(query, verbose)
 
             if numbered:
                 self.write_rank(rk, query, outdir, prefix='{0:04d}'.format(i))
