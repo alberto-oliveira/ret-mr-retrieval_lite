@@ -6,6 +6,7 @@ import sys
 import traceback
 
 import cv2
+import cv2.flann
 from sklearn.preprocessing import normalize
 import numpy as np
 #import pyflann
