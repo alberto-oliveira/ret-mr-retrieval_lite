@@ -13,9 +13,9 @@ search: search_index.py
 
 index_and_search: create_and_search_index.py
 ifndef JOBS
-	python run_experiments.py $(DATASET) $(DESCRIPTOR) $(CFGPATH)
+	python create_and_search_index.py $(CFGPATH)
 else
-	python run_experiments.py $(DATASET) $(DESCRIPTOR) $(CFGPATH) -s $(JOBS)
+	python create_and_search_index.py $(CFGPATH) -s $(JOBS)
 endif
 
 rank: create_ranks.py

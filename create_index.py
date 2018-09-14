@@ -8,7 +8,7 @@ from libretrieval.features.io import load_features
 
 from libretrieval.search.index import create_flann_index
 
-def create_index_(retcfg):
+def create_index(retcfg):
 
     index_type = retcfg['index']['index_type']
     dist_type = retcfg['index']['dist_type']
