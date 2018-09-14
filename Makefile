@@ -15,7 +15,7 @@ index_and_search: create_and_search_index.py
 ifndef JOBS
 	python create_and_search_index.py $(CFGPATH)
 else
-	python create_and_search_index.py $(CFGPATH) -s $(JOBS)
+	python create_and_search_index.py $(CFGPATH) -j $(JOBS)
 endif
 
 rank: create_ranks.py
