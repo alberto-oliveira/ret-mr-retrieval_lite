@@ -49,15 +49,15 @@ def create_rank_files(retcfg, verbose=True):
         basename = os.path.basename(matchfpath).rsplit('.', 2)[0]
 
         rankfpath = "{0:s}{1:s}.rk".format(outdir, basename)
-        votes = np.load(matchfpath)
+        indices = np.load(matchfpath)
         dists = np.load(distfpath)
 
         print(matchfpath)
         print(distfpath)
         print(rankfpath)
 
-        assert votes.shape == dists.shape, "Inconsistent shape between votes and distance array"
-        nqfeat = votes.shape[0]
+        assert indices.shape == dists.shape, "Inconsistent shape between indices and distance array"
+        nqfeat = indices.shape[0]
 
         matchscore= np.zeros(dbsize, dtype=np.float32)
         distscores = np.zeros(dbsize, dtype=np.float32)
@@ -66,9 +66,9 @@ def create_rank_files(retcfg, verbose=True):
         for i in range(nqfeat):
 
             # v has the index of the feature that got the vote. invidx[v] is the index of the
-            # collection image the feature v is from. Thus, 1 is summed in the number of votes
+            # collection image the feature v is from. Thus, 1 is summed in the number of indices
             # for the feature, and the distance got is summed as well (to be divided later)
-            for v, d in zip(votes[i, :], dists[i, :]):
+            for v, d in zip(indices[i, :], dists[i, :]):
                 dbi = invidx[v]
                 matchscore[dbi] += 1
                 distscores[dbi] += d

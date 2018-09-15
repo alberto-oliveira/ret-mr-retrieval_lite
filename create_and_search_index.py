@@ -12,6 +12,10 @@ from sklearn.neighbors import NearestNeighbors
 from libretrieval.utility import safe_create_dir, cfgloader
 from libretrieval.features.io import load_features
 
+import time
+
+import ipdb as pdb
+
 
 def create_and_search_index(retcfg, jobs):
 
@@ -38,26 +42,28 @@ def create_and_search_index(retcfg, jobs):
 
     print(" -- Creating <{0:s}> NN index".format(index_type))
     print("     -> KNN: {0:d}".format(knn))
-    print("     -> Metric: {0:d}".format(dist_type))
+    print("     -> Metric: {0:s}".format(dist_type))
     nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs)
     nnidx.fit(db_features)
     print("")
 
+    ts = time.perf_counter()
     print(" -- Searching index with {0:02d} jobs".format(jobs))
     distances, indices = nnidx.kneighbors(q_features)
+    print("    .Done (Elapsed = {0:0.3f}s".format(time.perf_counter() - ts))
 
     s = 0
     for qname, n in q_namelist:
 
         qdists = distances[s:s+n]
-        qidx = distances[s:s+n]
+        qidx = indices[s:s+n]
 
         matchfpath = "{0:s}{1:s}.matches".format(outdir, qname)
         distfpath = "{0:s}{1:s}.dist".format(outdir, qname)
 
         print(qname, "-> ", s, ":", s+n)
         print("   |_ dists: ", qdists.shape)
-        print("   |_ dists: ", qidx.shape, end="\n---\n")
+        print("   |_ indices: ", qidx.shape, end="\n---\n")
         np.save(matchfpath + ".npy", qidx)
         np.save(distfpath + ".npy", qdists)
         s += n
