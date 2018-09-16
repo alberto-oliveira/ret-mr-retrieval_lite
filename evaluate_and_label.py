@@ -87,6 +87,7 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
         aux.append(np.mean(gtarr[:, 0:k], axis=1).reshape((-1,1)))
 
     prectable = np.hstack(aux)
+    prectable = np.vstack([np.arange(prectable.shape[0]), prectable])
 
     # Computing and stacking the average between all queries
     prectable = np.vstack([prectable, np.mean(prectable, axis=0)])
@@ -95,8 +96,8 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
     outevalfname = outdir + retcfg['DEFAULT']['expname'] + "_eval.csv"
 
     np.save(outrelfname, gtarr[:, 0:kp])
-    np.savetxt(outevalfname, prectable, header=",P@001,P@003,P@005,P@010,P@025,P@050,P@100,P@250,P@500,P@1000",
-               fmt="  ,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f", delimiter=",")
+    np.savetxt(outevalfname, prectable, header="Q#,P@001,P@003,P@005,P@010,P@025,P@050,P@100,P@250,P@500,P@1000",
+               fmt=" %04d,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f", delimiter=",")
 
 
 if __name__ == "__main__":
