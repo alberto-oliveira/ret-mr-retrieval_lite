@@ -87,7 +87,7 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
         aux.append(np.mean(gtarr[:, 0:k], axis=1).reshape((-1,1)))
 
     prectable = np.hstack(aux)
-    prectable = np.vstack([np.arange(prectable.shape[0]), prectable])
+    prectable = np.hstack([np.arange(prectable.shape[0]).reshape(-1, 1), prectable])
 
     # Computing and stacking the average between all queries
     prectable = np.vstack([prectable, np.mean(prectable, axis=0)])
