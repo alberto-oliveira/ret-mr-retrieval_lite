@@ -16,6 +16,8 @@ import time
 
 import ipdb as pdb
 
+batch_size = 500
+
 
 def create_and_search_index(retcfg, jobs):
 
@@ -42,14 +44,28 @@ def create_and_search_index(retcfg, jobs):
 
     print(" -- Creating <{0:s}> NN index".format(index_type))
     print("     -> KNN: {0:d}".format(knn))
-    print("     -> Metric: {0:s}".format(dist_type))
+    print("     -> Metric: {0:s}\n".format(dist_type))
     nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs)
     nnidx.fit(db_features)
 
-    ts = time.perf_counter()
-    print("\n -- Searching index with {0:02d} jobs".format(jobs), flush=True)
-    distances, indices = nnidx.kneighbors(q_features)
-    print("    .Done (Elapsed = {0:0.3f}s".format(time.perf_counter() - ts), flush=True)
+    distances = []
+    indices = []
+    n_batches = int(np.ceil(q_features.shape[0] / batch_size))
+
+    for i in range(n_batches):
+        s = i*batch_size
+        e = s + batch_size
+        batch_q_features = q_features[s:e]
+        ts = time.perf_counter()
+        print(" -- Searching batch {0:03d}/{1:03d} with {2:02d} jobs".format(i+1, n_batches, jobs), flush=True, end='')
+        distances_, indices_ = nnidx.kneighbors(batch_q_features)
+        print(" ...Done (Elapsed = {0:0.3f}s".format(time.perf_counter() - ts), flush=True)
+
+        distances.append(distances_)
+        indices.append(indices_)
+
+    distances = np.vstack(distances)
+    indices = np.vstack(indices)
 
     s = 0
     for qname, n in q_namelist:
