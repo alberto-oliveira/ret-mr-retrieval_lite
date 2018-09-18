@@ -50,7 +50,7 @@ def create_and_search_index(retcfg, jobs):
     ts = time.perf_counter()
     print(" -- Searching index with {0:02d} jobs".format(jobs))
     distances, indices = nnidx.kneighbors(q_features)
-    print("    .Done (Elapsed = {0:0.3f}s".format(time.perf_counter() - ts))
+    print("    .Done (Elapsed = {0:0.3f}s".format(time.perf_counter() - ts), flush=True)
 
     s = 0
     for qname, n in q_namelist:
@@ -67,6 +67,8 @@ def create_and_search_index(retcfg, jobs):
         np.save(matchfpath + ".npy", qidx)
         np.save(distfpath + ".npy", qdists)
         s += n
+
+    print("---", flush=True)
 
 
 if __name__ == "__main__":
