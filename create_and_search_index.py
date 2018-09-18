@@ -45,10 +45,9 @@ def create_and_search_index(retcfg, jobs):
     print("     -> Metric: {0:s}".format(dist_type))
     nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs)
     nnidx.fit(db_features)
-    print("")
 
     ts = time.perf_counter()
-    print(" -- Searching index with {0:02d} jobs".format(jobs))
+    print("\n -- Searching index with {0:02d} jobs".format(jobs), flush=True)
     distances, indices = nnidx.kneighbors(q_features)
     print("    .Done (Elapsed = {0:0.3f}s".format(time.perf_counter() - ts), flush=True)
 
