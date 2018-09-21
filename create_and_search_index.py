@@ -45,7 +45,12 @@ def create_and_search_index(retcfg, jobs):
     print(" -- Creating <{0:s}> NN index".format(index_type))
     print("     -> KNN: {0:d}".format(knn))
     print("     -> Metric: {0:s}\n".format(dist_type))
-    nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs)
+
+    mp = dict()
+    if dist_type == 'seuclidean':
+        mp['V'] = np.var(db_features, axis=0, dtype=np.float64)
+
+    nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs, metric_params=mp)
     nnidx.fit(db_features)
 
     distances = []
