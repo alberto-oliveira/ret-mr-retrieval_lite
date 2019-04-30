@@ -18,6 +18,13 @@ else
 	python create_and_search_index.py $(CFGPATH) -j $(JOBS)
 endif
 
+searchdb: create_and_search_db.py
+ifndef JOBS
+	python create_and_search_index.py $(CFGPATH)
+else
+	python create_and_search_index.py $(CFGPATH) -j $(JOBS)
+endif
+
 rank: create_ranks.py
 	python create_ranks.py $(CFGPATH)
 
