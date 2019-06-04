@@ -7,7 +7,7 @@ import glob
 
 import numpy as np
 
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import normalize, MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
 
 from libretrieval.utility import safe_create_dir, cfgloader
@@ -15,23 +15,34 @@ from libretrieval.features.io import load_features
 
 from tqdm import tqdm
 
+from create_ranks import invert_index
+
 #import ipdb as pdb
 
 batch_size = 500
 
+def get_order(matchscore, distscore):
 
-def create_and_search_db(retcfg, jobs):
+    normdistscore = normalize(normdist)
+    normdistscore = np.max(normdist) - normdist
+
+    comb = matchscore + normdistscore
+
+    return np.argsort(comb)[::-1]
+
+def create_and_search_db_local(retcfg, jobs):
 
     norm = retcfg.get('feature', 'norm', fallback=None)
 
     print(" -- loading DB features from: {0:s}".format(retcfg['path']['dbfeature']))
     db_features = load_features(retcfg['path']['dbfeature'])
-    # We are creating an array of topk for the DB objects
-    q_features = db_features
+    db_namelist = np.loadtxt(retcfg['path']['qlist'], dtype=dict(names=('qname', 'nfeat'), formats=('U100', np.int32)))
+    ns = db_namelist.shape[0]
+
+    invidx = invert_index(db_namelist)
 
     if norm:
         db_features = normalize(db_features, norm)
-        q_features = normalize(q_features, norm)
 
     outdir = retcfg['path']['outdir']
     safe_create_dir(outdir)
@@ -52,32 +63,49 @@ def create_and_search_db(retcfg, jobs):
     nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs, metric_params=mp)
     nnidx.fit(db_features)
 
-    indices = np.zeros((q_features.shape[0], knn), dtype=np.int32) - 1
-    distances = np.zeros((q_features.shape[0], knn), dtype=np.float64) - 1
-    n_batches = int(np.ceil(q_features.shape[0] / batch_size))
+    indices = np.zeros((db_namelist.shape[0], knn), dtype=np.int32) - 1
+    scores = np.zeros((db_namelist.shape[0], knn), dtype=np.float64) - 1
 
-    for i in tqdm(range(n_batches), ncols=100, desc='Batch #', total=n_batches):
-        s = i*batch_size
-        e = s + batch_size
-        batch_q_features = q_features[s:e]
+    s = 0
+
+    for i in tqdm(range(ns), ncols=100, desc='Sample #', total=ns):
+
+        name, nf = db_namelist[i]
+        e = s + nf
+
+        batch_q_features = db_features[s:e]
         dist_, indices_ = nnidx.kneighbors(batch_q_features, return_distance=True)
 
-        assert indices[s:e].shape == indices_.shape, "output indices array shape <{0:s}> incompatible with batch indice" \
-                                                     "array shape <{1:s}>".format(str(indices[s:e].shape), str(indices_))
+        idx_ = indices_.reshape(-1)
+        dis_ = dist_.reshape(-1)
 
-        assert distances[s:e].shape == dist_.shape, "output indices array shape <{0:s}> incompatible with batch indice" \
-                                                     "array shape <{1:s}>".format(str(indices[s:e].shape), str(indices_))
+        matchscore = np.bincount(invidx[idx_], minlegth=ns)
+        distscore = np.bincount(invidx[idx_], weights=dis_, minlegth=ns)/matchscore
 
-        indices[s:e] = indices_
-        distances[s:e] = dist_
+        np.nan_to_num(distscore)
 
-        print('Done Batch {0:d}/{1:d}'.format(i, n_batches))
+        order = get_order(matchscore, distscore)
+
+        index = np.range(ns)[order]
+        score = matchscore[order]
+
+        index = index[score != 0]
+        score = score[score != 0]
+
+        indices[i, 0:order.]
+
+        s = e
+
+
 
     assert np.argwhere(indices == -1).size == 0, "Indices on positions {0:s} have not been updated " \
                                                  "correctly".format(np.argwhere(indices == -1).tostring())
 
     assert np.argwhere(distances == -1).size == 0, "Indices on positions {0:s} have not been updated " \
                                                  "correctly".format(np.argwhere(indices == -1).tostring())
+
+
+
 
     outfile = "{0:s}{1:s}_db_matches.npy".format(outdir, retcfg.get('DEFAULT', 'expname'))
     np.save(outfile, indices)
@@ -97,4 +125,4 @@ if __name__ == "__main__":
     print(" -- Loading cfg")
     retcfg = cfgloader(args.cfgfile)
 
-    create_and_search_db(retcfg, args.njobs)
+    create_and_search_db_local(retcfg, args.njobs)

@@ -6,11 +6,16 @@ import glob
 
 import numpy as np
 
+from tqdm import tqdm
+
 
 def load_features(fpath):
 
     if os.path.isfile(fpath):
         features = np.load(fpath)
+
+        return features
+
     elif os.path.isdir(fpath):
 
         filelist = glob.glob(fpath + "/*.npy")
@@ -18,10 +23,12 @@ def load_features(fpath):
 
         filelist.sort()
 
-        featlist = [np.load(f) for f in filelist]
-        features = np.vstack(featlist)
+        features = []
+        for f in tqdm(filelist, ncols=100, desc='Feat. File #', total=len(filelist)):
+
+            features.append(np.load(f))
+
+        return np.concatenate(features)
 
     else:
         raise OSError("<{0:s}> is neither file nor directory".format(fpath))
-
-    return features

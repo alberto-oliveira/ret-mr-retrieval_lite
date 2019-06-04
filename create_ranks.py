@@ -92,6 +92,7 @@ def create_rank_files(retcfg, verbose=True):
 
         if score == "vote":
             rank = rank[::-1]
+            rank = rank[rank != 0]
 
         if limit < 0:
             limit = rank.shape[0]
