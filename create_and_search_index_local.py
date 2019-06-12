@@ -7,14 +7,15 @@ import glob
 import numpy as np
 
 from sklearn.preprocessing import normalize
-from sklearn.neighbors import NearestNeighbors
 
-import cv2
+import nmslib
 
 from libretrieval.utility import safe_create_dir, cfgloader
 from libretrieval.features.io import load_features
 
 from tqdm import tqdm
+
+import ipdb as pdb
 
 batch_size = 500
 
@@ -39,7 +40,6 @@ def kneighbors_cv(idx, q_feat, db_feat, knn):
 
 def create_and_search_index(retcfg, jobs):
 
-    lib = retcfg.get('index', 'lib', fallback='sklearn')
 
     q_features = load_features(retcfg['path']['qfeature'])
     q_namelist = np.loadtxt(retcfg['path']['qlist'], dtype=dict(names=('qname', 'nfeat'), formats=('U100', np.int32)))
@@ -61,26 +61,17 @@ def create_and_search_index(retcfg, jobs):
     dist_type = retcfg['index']['dist_type']
 
     knn = retcfg.getint('search', 'knn')
+    M = retcfg.getint('index', 'M', fallback=100)
+    efC = retcfg.getint('index', 'efC', fallback=100)
 
     print(" -- Creating <{0:s}> NN index".format(index_type))
     print("     -> KNN: {0:d}".format(knn))
     print("     -> Metric: {0:s}\n".format(dist_type))
 
-    mp = dict()
-    if dist_type == 'seuclidean':
-        mp['V'] = np.var(db_features, axis=0, dtype=np.float64)
-
-    if lib == 'sklearn':
-        nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs, metric_params=mp)
-        nnidx.fit(db_features)
-    elif lib == 'cv':
-        FLANN_INDEX_KDTREE = 1
-        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-        search_params = dict(checks=50)
-        nnidx = cv2.FlannBasedMatcher(index_params,search_params)
-
-    else:
-        raise TypeError('lib is either sklearn or cv, value:{0:s}'.format(lib))
+    nnidx = nmslib.init(method=index_type, space=dist_type)
+    nnidx.addDataPointBatch(db_features)
+    nnidx.createIndex({'post': 2, 'efConstruction': efC, 'M': M}, print_progress=True)
+    nnidx.setQueryTimeParams({'efSearch': knn})
 
     distances = []
     indices = []
@@ -90,13 +81,12 @@ def create_and_search_index(retcfg, jobs):
         s = i*batch_size
         e = s + batch_size
         batch_q_features = q_features[s:e]
-        if lib == 'sklearn':
-            distances_, indices_ = nnidx.kneighbors(batch_q_features)
-        elif lib == 'cv':
-            distances_, indices_ = kneighbors_cv(nnidx, batch_q_features, db_features, knn)
 
-        distances.append(distances_)
-        indices.append(indices_)
+        neighbours = nnidx.knnQueryBatch(batch_q_features, k=10, num_threads=jobs)
+        neighbours = list(zip(*neighbours))
+
+        indices.append(np.array(neighbours[0]))
+        distances.append(np.array(neighbours[1]))
 
     distances = np.vstack(distances)
     indices = np.vstack(indices)

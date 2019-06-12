@@ -9,6 +9,8 @@ from sklearn.metrics import precision_score
 
 import numpy as np
 
+import ipdb as pdb
+
 from libretrieval.utility import cfgloader
 
 completedir = lambda d: d if d[-1] == "/" else d + "/"
@@ -40,13 +42,15 @@ def get_query_label(qname):
     return get_label(suffix)
 
 
-def get_rank_relevance(qlabel, rank):
+def get_rank_relevance(qlabel, rank, k=-1):
 
     rksz = rank['name'].shape[0]
+    if k == -1:
+        k = rksz
 
-    gt = np.zeros((1, rksz), dtype=np.uint8)
+    gt = np.zeros((1, k), dtype=np.uint8)
 
-    for i in range(rksz):
+    for i in range(k):
         rlabel = get_label(rank['name'][i])
 
         #rlabel = rlabel.split('\'')[1]
@@ -65,6 +69,8 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
     rkdir = completedir(retcfg['path']['outdir']) + "queryfiles/"
     outdir = completedir(retcfg['path']['outdir'])
 
+    eval_k = retcfg.getint('eval', 'k')
+
     print(rkdir)
 
     rkfiles = glob.glob(rkdir + "*.rk")
@@ -76,9 +82,11 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
         qlabel = get_query_label(os.path.basename(rkpath))
 
         rank = read_rank(rkpath)
-        gtlist.append(get_rank_relevance(qlabel, rank))
-        print("---")
+        gtlist.append(get_rank_relevance(qlabel, rank, eval_k))
+        print(gtlist[-1].shape, "\n---")
 
+
+    pdb.set_trace()
     gtarr = np.vstack(gtlist)
     print(gtarr.shape)
     aux = []

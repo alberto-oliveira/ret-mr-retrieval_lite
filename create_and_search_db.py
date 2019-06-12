@@ -2,8 +2,10 @@
 #-*- coding: utf-8 -*-
 
 
-import argparse
+import argparse, os
 import glob
+
+import psutil
 
 import numpy as np
 
@@ -15,14 +17,34 @@ from libretrieval.features.io import load_features
 
 from tqdm import tqdm
 
+import nmslib
+
 #import ipdb as pdb
 
 batch_size = 500
 
 
+def memuse(order=0):
+    pid = os.getpid()
+    py = psutil.Process(pid)
+    memoryUse = py.memory_info()[0] / 2. ** 30  # memory use in GB
+    print('{0:d}: memory use: {1:0.3f}GB'.format(order, memoryUse))
+
+def check_consistency(a, k):
+
+    print("Checking consistency...")
+    for i in tqdm(range(len(a)), ncols=100, desc="Res", total=len(a)):
+        elm = a[i]
+        if elm.size != k:
+            raise ValueError("Element [{0:d}] size <{1:d}> incompatible with k = <{2:d}>".format(i, elm.size, k))
+
+
 def create_and_search_db(retcfg, jobs):
 
+    batch_size = -1
+
     norm = retcfg.get('feature', 'norm', fallback=None)
+
 
     print(" -- loading DB features from: {0:s}".format(retcfg['path']['dbfeature']))
     db_features = load_features(retcfg['path']['dbfeature'])
@@ -39,52 +61,43 @@ def create_and_search_db(retcfg, jobs):
     index_type = retcfg['index']['index_type']
     dist_type = retcfg['index']['dist_type']
 
-    knn = retcfg.getint('search', 'knn_db', fallback=1000)
+    knn = retcfg.getint('search', 'knn_db', fallback=300)
+    M = retcfg.getint('index', 'M', fallback=100)
+    efC = retcfg.getint('index', 'efC', fallback=100)
 
     print(" -- Creating <{0:s}> NN index".format(index_type))
     print("     -> KNN: {0:d}".format(knn))
     print("     -> Metric: {0:s}\n".format(dist_type))
 
-    mp = dict()
-    if dist_type == 'seuclidean':
-        mp['V'] = np.var(db_features, axis=0, dtype=np.float64)
+    nnidx = nmslib.init(method=index_type, space=dist_type)
+    nnidx.addDataPointBatch(db_features)
+    del db_features
+    nnidx.createIndex({'post': 2, 'efConstruction': efC, 'M': M}, print_progress=True)
+    nnidx.setQueryTimeParams({'efSearch': knn})
 
-    nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs, metric_params=mp)
-    nnidx.fit(db_features)
+    if batch_size == -1:
+        batch_size = q_features.shape[0]
 
-    indices = np.zeros((q_features.shape[0], knn), dtype=np.int32) - 1
-    distances = np.zeros((q_features.shape[0], knn), dtype=np.float64) - 1
     n_batches = int(np.ceil(q_features.shape[0] / batch_size))
 
     for i in tqdm(range(n_batches), ncols=100, desc='Batch #', total=n_batches):
         s = i*batch_size
         e = s + batch_size
         batch_q_features = q_features[s:e]
-        dist_, indices_ = nnidx.kneighbors(batch_q_features, return_distance=True)
 
-        assert indices[s:e].shape == indices_.shape, "output indices array shape <{0:s}> incompatible with batch indice" \
-                                                     "array shape <{1:s}>".format(str(indices[s:e].shape), str(indices_))
+        neighbours = nnidx.knnQueryBatch(batch_q_features, k=knn, num_threads=jobs)
+        neighbours = list(zip(*neighbours))
 
-        assert distances[s:e].shape == dist_.shape, "output indices array shape <{0:s}> incompatible with batch indice" \
-                                                     "array shape <{1:s}>".format(str(indices[s:e].shape), str(indices_))
+    #pdb.set_trace()
 
-        indices[s:e] = indices_
-        distances[s:e] = dist_
-
-        print('Done Batch {0:d}/{1:d}'.format(i, n_batches))
-
-    assert np.argwhere(indices == -1).size == 0, "Indices on positions {0:s} have not been updated " \
-                                                 "correctly".format(np.argwhere(indices == -1).tostring())
-
-    assert np.argwhere(distances == -1).size == 0, "Indices on positions {0:s} have not been updated " \
-                                                 "correctly".format(np.argwhere(indices == -1).tostring())
+    check_consistency(neighbours[0], knn)
+    check_consistency(neighbours[1], knn)
 
     outfile = "{0:s}{1:s}_db_matches.npy".format(outdir, retcfg.get('DEFAULT', 'expname'))
-    np.save(outfile, indices)
-
+    np.save(outfile, np.array(neighbours[0]))
 
     outfile = "{0:s}{1:s}_db_scores.npy".format(outdir, retcfg.get('DEFAULT', 'expname'))
-    np.save(outfile, distances)
+    np.save(outfile, np.array(neighbours[1]))
 
 
 if __name__ == "__main__":

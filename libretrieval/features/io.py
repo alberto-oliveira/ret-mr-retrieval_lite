@@ -28,7 +28,7 @@ def load_features(fpath):
 
             features.append(np.load(f))
 
-        return np.concatenate(features)
+        return np.vstack(features)
 
     else:
         raise OSError("<{0:s}> is neither file nor directory".format(fpath))

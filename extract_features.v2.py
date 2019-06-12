@@ -15,26 +15,22 @@ from tqdm import tqdm
 
 completedir = lambda x: x + "/" if x[-1] != '/' else x
 
-def get_detector(d):
+def get_detector(d, n=500):
 
     if d == "SURF":
-        return cv2.xfeatures2d.SURF_create(hessianThreshold=30, extended=True)
+        return cv2.xfeatures2d.SURF_create(hessianThreshold=30)
     if d == "SIFT":
-            return cv2.xfeatures2d.SIFT_create(extended=True)
-    if d == "ORB":
-            return cv2.xfeatures2d.SIFT_create(extended=True)
+            return cv2.xfeatures2d.SIFT_create(nfeatures=n)
     else:
         raise ValueError("Incorrect detector", d)
 
 
-def get_descriptor(d):
+def get_descriptor(d, n=500):
 
     if d == "SURF":
-        return cv2.xfeatures2d.SURF_create(hessianThreshold=30, extended=True)
+        return cv2.xfeatures2d.SURF_create(hessianThreshold=30)
     if d == "SIFT":
-            return cv2.xfeatures2d.SIFT_create(extended=True)
-    if d == "ORB":
-            return cv2.xfeatures2d.ORB_create(extended=True)
+            return cv2.xfeatures2d.SIFT_create(nfeatures=n)
     else:
         raise ValueError("Incorrect descriptor", d)
 
@@ -48,8 +44,8 @@ def extract_features(inputdir, prefix, detector, descriptor, limit):
 
     feat_per_img = []
 
-    det = get_detector(detector)
-    des = get_descriptor(descriptor)
+    det = get_detector(detector, n=limit)
+    des = get_descriptor(descriptor, n=limit)
 
     for i in tqdm(range(len(impathlist)), ncols=100, desc="Image:", total=len(impathlist)):
 

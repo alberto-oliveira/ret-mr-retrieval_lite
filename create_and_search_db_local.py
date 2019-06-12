@@ -13,11 +13,13 @@ from sklearn.neighbors import NearestNeighbors
 from libretrieval.utility import safe_create_dir, cfgloader
 from libretrieval.features.io import load_features
 
+import nmslib
+
 from tqdm import tqdm
 
 from create_ranks import invert_index
 
-#import ipdb as pdb
+import ipdb as pdb
 
 batch_size = 500
 
@@ -30,16 +32,20 @@ def get_order(matchscore, distscore):
 
     return np.argsort(comb)[::-1]
 
+
 def create_and_search_db_local(retcfg, jobs):
 
     norm = retcfg.get('feature', 'norm', fallback=None)
 
     print(" -- loading DB features from: {0:s}".format(retcfg['path']['dbfeature']))
     db_features = load_features(retcfg['path']['dbfeature'])
-    db_namelist = np.loadtxt(retcfg['path']['qlist'], dtype=dict(names=('qname', 'nfeat'), formats=('U100', np.int32)))
+    db_namelist = np.loadtxt(retcfg['path']['dblist'], dtype=dict(names=('qname', 'nfeat'), formats=('U100', np.int32)))
     ns = db_namelist.shape[0]
+    idarray = np.arange(ns).astype(np.int32)
 
     invidx = invert_index(db_namelist)
+
+    score = retcfg.get('rank', 'score_type', fallback='vote')
 
     if norm:
         db_features = normalize(db_features, norm)
@@ -50,49 +56,66 @@ def create_and_search_db_local(retcfg, jobs):
     index_type = retcfg['index']['index_type']
     dist_type = retcfg['index']['dist_type']
 
-    knn = retcfg.getint('search', 'knn_db', fallback=1000)
+    knn = retcfg.getint('search', 'knn_db', fallback=10)
+    nmatches = retcfg.getint('rank', 'limit', fallback=100)
 
     print(" -- Creating <{0:s}> NN index".format(index_type))
     print("     -> KNN: {0:d}".format(knn))
     print("     -> Metric: {0:s}\n".format(dist_type))
 
-    mp = dict()
-    if dist_type == 'seuclidean':
-        mp['V'] = np.var(db_features, axis=0, dtype=np.float64)
+    nnidx = nmslib.init(method=index_type, space=dist_type)
+    nnidx.addDataPointBatch(db_features)
+    nnidx.createIndex({'post': 2}, print_progress=True)
+    nnidx.setQueryTimeParams({'efSearch': knn})
 
-    nnidx = NearestNeighbors(n_neighbors=knn, algorithm=index_type, metric=dist_type, n_jobs=jobs, metric_params=mp)
-    nnidx.fit(db_features)
-
-    indices = np.zeros((db_namelist.shape[0], knn), dtype=np.int32) - 1
-    scores = np.zeros((db_namelist.shape[0], knn), dtype=np.float64) - 1
+    indices = np.zeros((db_namelist.shape[0], nmatches), dtype=np.int32) - 1
+    scores = np.zeros((db_namelist.shape[0], nmatches), dtype=np.float64) - 1
 
     s = 0
 
-    for i in tqdm(range(ns), ncols=100, desc='Sample #', total=ns):
+    np.seterr(divide='ignore')
+    for i in tqdm(range(10), ncols=100, desc='Sample #', total=10):
 
         name, nf = db_namelist[i]
         e = s + nf
 
         batch_q_features = db_features[s:e]
-        dist_, indices_ = nnidx.kneighbors(batch_q_features, return_distance=True)
+        neighbours = np.array(nnidx.knnQueryBatch(batch_q_features, k=knn, num_threads=jobs))
+        neighbours = list(zip(*neighbours))
 
-        idx_ = indices_.reshape(-1)
-        dis_ = dist_.reshape(-1)
+        pdb.set_trace()
 
-        matchscore = np.bincount(invidx[idx_], minlegth=ns)
-        distscore = np.bincount(invidx[idx_], weights=dis_, minlegth=ns)/matchscore
+        indices_ = np.array(neighbours[0]).reshape(-1).astype(np.int32)
+        dists_ = np.array(neighbours[1]).reshape(-1)
 
-        np.nan_to_num(distscore)
+        matchscore = np.bincount(invidx[indices_], minlength=ns)
+        distscores = np.bincount(invidx[indices_], weights=dists_, minlength=ns)/matchscore
 
-        order = get_order(matchscore, distscore)
+        aux = np.logical_not(np.logical_or(np.isnan(distscores), np.isinf(distscores)))
+        matchscore = matchscore[aux]
+        distscores = distscores[aux]
+        idarray_ = idarray[aux]
 
-        index = np.range(ns)[order]
-        score = matchscore[order]
+        if score == "vote":
+            finalscore = matchscore
+        elif score == "distance":
+            finalscore = distscores
+        elif score == "combine":
+            # Norm L2 and convert to similarity
+            distscores_n = normalize(distscores.reshape(1, -1)).reshape(-1)
+            distscores_n = np.max(distscores_n) - distscores_n
 
-        index = index[score != 0]
-        score = score[score != 0]
+            finalscore = matchscore + distscores_n
 
-        indices[i, 0:order.]
+        order = np.argsort(finalscore)
+        if score == "vote" or score == "combine":
+            order = order[::-1]
+
+        idarray_ = idarray_[order]
+        finalscore = finalscore[order]
+
+        indices[i, :idarray_.size] = idarray_
+        scores[i, :idarray_.size] = finalscore
 
         s = e
 
@@ -101,18 +124,15 @@ def create_and_search_db_local(retcfg, jobs):
     assert np.argwhere(indices == -1).size == 0, "Indices on positions {0:s} have not been updated " \
                                                  "correctly".format(np.argwhere(indices == -1).tostring())
 
-    assert np.argwhere(distances == -1).size == 0, "Indices on positions {0:s} have not been updated " \
+    assert np.argwhere(scores == -1).size == 0, "Indices on positions {0:s} have not been updated " \
                                                  "correctly".format(np.argwhere(indices == -1).tostring())
-
-
 
 
     outfile = "{0:s}{1:s}_db_matches.npy".format(outdir, retcfg.get('DEFAULT', 'expname'))
     np.save(outfile, indices)
 
-
     outfile = "{0:s}{1:s}_db_scores.npy".format(outdir, retcfg.get('DEFAULT', 'expname'))
-    np.save(outfile, distances)
+    np.save(outfile, scores)
 
 
 if __name__ == "__main__":

@@ -33,11 +33,11 @@ evaluate: evaluate_and_label.py
 
 pipeline: index search rank evaluate
 	@echo "-- Pipeline for: "
-	@cat $(CFGFILE)
+	@cat $(CFGPATH)
 
 pipeline_sk: index_and_search rank evaluate
 	@echo "-- Pipeline for: "
-	@cat $(CFGFILE)
+	@cat $(CFGPATH)
 
 fitting:
 	python fitting.py $(CFGPATH)

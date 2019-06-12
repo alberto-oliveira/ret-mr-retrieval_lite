@@ -8,6 +8,10 @@ import time
 from libretrieval.ranking.score import *
 from libretrieval.utility import cfgloader
 
+from sklearn.preprocessing import normalize
+
+from tqdm import tqdm
+
 completedir = lambda d: d if d[-1] == "/" else d + "/"
 
 
@@ -38,49 +42,49 @@ def create_rank_files(retcfg, verbose=True):
     matchflist.sort()
     distflist.sort()
 
+    nq = len(matchflist)
+
     score = retcfg['rank']['score_type']
     limit = retcfg.getint('rank', 'limit')
 
     invidx = invert_index(db_namelist)
 
-    for matchfpath, distfpath in zip(matchflist, distflist):
+    for i in tqdm(range(nq), ncols=100, desc='Queryfile', total=nq):
 
-        ts = time.perf_counter()
+        matchfpath = matchflist[i]
+        distfpath = distflist[i]
+
         basename = os.path.basename(matchfpath).rsplit('.', 2)[0]
 
         rankfpath = "{0:s}{1:s}.rk".format(outdir, basename)
-        indices = np.load(matchfpath)
+        indices = np.load(matchfpath).astype(np.int32)
         dists = np.load(distfpath)
 
-        print(matchfpath)
-        print(distfpath)
-        print(rankfpath)
-
         assert indices.shape == dists.shape, "Inconsistent shape between indices and distance array"
-        nqfeat = indices.shape[0]
 
-        matchscore= np.zeros(dbsize, dtype=np.float32)
-        distscores = np.zeros(dbsize, dtype=np.float32)
         namearray = db_namelist['name']
 
-        for i in range(nqfeat):
+        indices_ = indices.reshape(-1)
+        dists_ = dists.reshape(-1)
 
-            # v has the index of the feature that got the vote. invidx[v] is the index of the
-            # collection image the feature v is from. Thus, 1 is summed in the number of indices
-            # for the feature, and the distance got is summed as well (to be divided later)
-            for v, d in zip(indices[i, :], dists[i, :]):
-                dbi = invidx[v]
-                matchscore[dbi] += 1
-                distscores[dbi] += d
+        matchscore = np.bincount(invidx[indices_], minlength=dbsize)
+        distscores = np.bincount(invidx[indices_], weights=dists_, minlength=dbsize)/matchscore
+
+        aux = np.logical_not(np.logical_or(np.isnan(distscores), np.isinf(distscores)))
+        matchscore = matchscore[aux]
+        distscores = distscores[aux]
+        namearray = namearray[aux]
 
         if score == "vote":
             finalscore = matchscore
         elif score == "distance":
-            finalscore = distscores/matchscore
+            finalscore = distscores
+        elif score == "combine":
+            # Norm L2 and convert to similarity
+            distscores_n = normalize(distscores.reshape(1, -1)).reshape(-1)
+            distscores_n = np.max(distscores_n) - distscores_n
 
-        aux = np.logical_not(np.logical_or(np.isnan(finalscore), np.isinf(finalscore)))
-        finalscore = finalscore[aux]
-        namearray = namearray[aux]
+            finalscore = matchscore + distscores_n
 
         aux = zip(namearray, finalscore)
 
@@ -90,14 +94,12 @@ def create_rank_files(retcfg, verbose=True):
         rank = np.array([a for a in aux], dtype=dt)
         rank.sort(order=('score', 'name'))
 
-        if score == "vote":
+        if score == "vote" or score == "combine":
             rank = rank[::-1]
-            rank = rank[rank != 0]
+            rank = rank[rank['score'] != 0]
 
         if limit < 0:
             limit = rank.shape[0]
-        te = time.perf_counter()
-        print("{0:0.4f}s".format(te-ts), end="\n---\n")
 
         np.savetxt(rankfpath, rank[0:limit], fmt="%-50s %10.5f")
 
