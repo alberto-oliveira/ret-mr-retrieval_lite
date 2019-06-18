@@ -82,8 +82,8 @@ def create_and_search_index(retcfg, jobs):
             qname, _ = q_namelist[c]
 
             if dists.size != knn:
-                #raise ValueError("{0:d}:{1:d}:{2:s} -- all dists == 0".format(c, j, qname))
-                pdb.set_trace()
+                raise ValueError("{0:d}:{1:d}:{2:s} -- all dists == 0".format(c, j, qname))
+                #pdb.set_trace()
 
             matchfpath = "{0:s}{1:s}.matches".format(outdir, qname)
             distfpath = "{0:s}{1:s}.dist".format(outdir, qname)

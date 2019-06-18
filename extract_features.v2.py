@@ -34,6 +34,16 @@ def get_descriptor(d, n=500):
     else:
         raise ValueError("Incorrect descriptor", d)
 
+def gen_random_feat(sample):
+
+    s = sample.shape
+    dt = sample.dtype
+    ma = sample.max()
+
+    rfeat = np.random.randn(*s)*ma
+
+    return rfeat.astype(dt)
+
 
 def extract_features(inputdir, prefix, detector, descriptor, limit):
 
@@ -47,6 +57,8 @@ def extract_features(inputdir, prefix, detector, descriptor, limit):
     det = get_detector(detector, n=limit)
     des = get_descriptor(descriptor, n=limit)
 
+    previous = None
+
     for i in tqdm(range(len(impathlist)), ncols=100, desc="Image:", total=len(impathlist)):
 
         impath = impathlist[i]
@@ -56,14 +68,21 @@ def extract_features(inputdir, prefix, detector, descriptor, limit):
         kp = det.detect(img, None)
         _, features = des.compute(img, kp)
 
-        features = features[:limit]
+        try:
+            features = features[:limit]
+        except TypeError:
+            # For corrupted images generate some random features
+            np.random.shuffle(previous)
+            features = previous
 
         feat_per_img.append((basename, features.shape[0]))
 
         outfeatfile = "{0:s}_{1:s}_batch{2:06d}.npy".format(prefix, descriptor, i)
         np.save(outfeatfile, features)
 
-    idx_dtype = rel_dtype = dict(names=('name', 'nfeat'), formats=('U100', np.int32))
+        previous = features.copy()
+
+    idx_dtype = dict(names=('name', 'nfeat'), formats=('U100', np.int32))
 
     outidxfile = "{0:s}_idx.out".format(prefix)
     np.savetxt(outidxfile, np.array(feat_per_img, dtype=idx_dtype), fmt="%-50s %d")

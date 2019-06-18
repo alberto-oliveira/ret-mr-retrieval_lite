@@ -64,12 +64,14 @@ def get_rank_relevance(qlabel, rank, k=-1):
 
 def evaluate_and_label(retcfg, lbl_suffix=""):
 
+    eval_k = retcfg.getint('eval', 'k')
+
+    klist = [k for k in [1, 3, 5, 10, 25, 50, 100, 250, 500, 1000] if k <= eval_k]
+
     kp = retcfg.getint("eval", "k")
 
     rkdir = completedir(retcfg['path']['outdir']) + "queryfiles/"
     outdir = completedir(retcfg['path']['outdir'])
-
-    eval_k = retcfg.getint('eval', 'k')
 
     print(rkdir)
 
@@ -85,13 +87,11 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
         gtlist.append(get_rank_relevance(qlabel, rank, eval_k))
         print(gtlist[-1].shape, "\n---")
 
-
-    pdb.set_trace()
     gtarr = np.vstack(gtlist)
     print(gtarr.shape)
     aux = []
 
-    for k in [1, 3, 5, 10, 25, 50, 100, 250, 500, 1000]:
+    for k in klist:
         aux.append(np.mean(gtarr[:, 0:k], axis=1).reshape((-1,1)))
 
     prectable = np.hstack(aux)
@@ -103,9 +103,13 @@ def evaluate_and_label(retcfg, lbl_suffix=""):
     outrelfname = outdir + retcfg['DEFAULT']['expname'] + lbl_suffix + ".irp_lbls.npy"
     outevalfname = outdir + retcfg['DEFAULT']['expname'] + "_eval.csv"
 
+    hdr = "Q#," + ",".join(["P@{0:03d}".format(k) for k in klist])
+
+    fmt = "%04d," + ",".join(["%0.3f" for _ in klist])
+
     np.save(outrelfname, gtarr[:, 0:kp])
-    np.savetxt(outevalfname, prectable, header="Q#,P@001,P@003,P@005,P@010,P@025,P@050,P@100,P@250,P@500,P@1000",
-               fmt=" %04d,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f,%0.3f", delimiter=",")
+    np.savetxt(outevalfname, prectable, header=hdr,
+               fmt=fmt, delimiter=",")
 
 
 if __name__ == "__main__":

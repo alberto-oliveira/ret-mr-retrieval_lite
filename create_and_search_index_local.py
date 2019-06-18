@@ -40,6 +40,7 @@ def kneighbors_cv(idx, q_feat, db_feat, knn):
 
 def create_and_search_index(retcfg, jobs):
 
+    batch_size = -1
 
     q_features = load_features(retcfg['path']['qfeature'])
     q_namelist = np.loadtxt(retcfg['path']['qlist'], dtype=dict(names=('qname', 'nfeat'), formats=('U100', np.int32)))
@@ -61,8 +62,8 @@ def create_and_search_index(retcfg, jobs):
     dist_type = retcfg['index']['dist_type']
 
     knn = retcfg.getint('search', 'knn')
-    M = retcfg.getint('index', 'M', fallback=100)
-    efC = retcfg.getint('index', 'efC', fallback=100)
+    M = retcfg.getint('index', 'M', fallback=20)
+    efC = retcfg.getint('index', 'efC', fallback=20)
 
     print(" -- Creating <{0:s}> NN index".format(index_type))
     print("     -> KNN: {0:d}".format(knn))
@@ -70,11 +71,13 @@ def create_and_search_index(retcfg, jobs):
 
     nnidx = nmslib.init(method=index_type, space=dist_type)
     nnidx.addDataPointBatch(db_features)
-    nnidx.createIndex({'post': 2, 'efConstruction': efC, 'M': M}, print_progress=True)
+    del db_features
+    nnidx.createIndex({'post': 2}, print_progress=True)
     nnidx.setQueryTimeParams({'efSearch': knn})
 
-    distances = []
-    indices = []
+    if batch_size == -1:
+        batch_size = q_features.shape[0]
+
     n_batches = int(np.ceil(q_features.shape[0] / batch_size))
 
     for i in tqdm(range(n_batches), ncols=100, desc='Batch', total=n_batches):
@@ -85,11 +88,8 @@ def create_and_search_index(retcfg, jobs):
         neighbours = nnidx.knnQueryBatch(batch_q_features, k=10, num_threads=jobs)
         neighbours = list(zip(*neighbours))
 
-        indices.append(np.array(neighbours[0]))
-        distances.append(np.array(neighbours[1]))
-
-    distances = np.vstack(distances)
-    indices = np.vstack(indices)
+    indices = np.array(neighbours[0])
+    distances = np.array(neighbours[1])
 
     s = 0
     for qname, n in q_namelist:
